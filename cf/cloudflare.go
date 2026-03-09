@@ -1,24 +1,42 @@
-package cloudflare
+package cf
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/cloudflare/cloudflare-go/v6"
+	"github.com/cloudflare/cloudflare-go/v6/accounts"
 	"github.com/cloudflare/cloudflare-go/v6/dns"
 	"github.com/cloudflare/cloudflare-go/v6/option"
 )
 
 type CloudflareClient struct {
-	zoneID string
-	client cloudflare.Client
+	zoneID    string
+	accountID string
+	client    *cloudflare.Client
 }
 
-func New(token string, zoneID string) *CloudflareClient {
+func New(accountID string, token string, zoneID string) *CloudflareClient {
 	return &CloudflareClient{
-		zoneID: zoneID,
-		client: *cloudflare.NewClient(option.WithAPIToken(token)),
+		zoneID:    zoneID,
+		accountID: accountID,
+		client:    cloudflare.NewClient(option.WithAPIToken(token)),
 	}
+}
+
+func (c *CloudflareClient) VerifyToken(ctx context.Context) error {
+	response, err := c.client.Accounts.Tokens.Verify(ctx, accounts.TokenVerifyParams{
+		AccountID: cloudflare.F(c.accountID),
+	})
+	if err != nil {
+		return err
+	}
+
+	if response.Status != accounts.TokenVerifyResponseStatusActive {
+		return fmt.Errorf("token must be active: token is %s", response.Status)
+	}
+
+	return nil
 }
 
 func (c *CloudflareClient) GetARecordForDomain(ctx context.Context, domain string) (*dns.RecordResponse, error) {

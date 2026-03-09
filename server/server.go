@@ -1,22 +1,21 @@
 package server
 
 import (
-	"fmt"
-	"net"
+	"log/slog"
 	"net/http"
 
-	"github.com/SealJonny/dyndns-go/cloudflare"
+	"github.com/SealJonny/dyndns-go/cf"
 )
 
 type Server struct {
-	port       string
-	cloudflare cloudflare.CloudflareClient
+	port   string
+	zoneID string
 }
 
-func New(port string, token string, zoneID string) *Server {
+func New(port string, zoneID string) *Server {
 	return &Server{
 		port,
-		*cloudflare.New(token, zoneID),
+		zoneID,
 	}
 }
 
@@ -33,37 +32,35 @@ func (s *Server) handleDynDNS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query()
-	if !query.Has("domain") || !query.Has("ipv4") {
-		http.Error(w, "must specify domain and ipv4 query arguments", http.StatusBadRequest)
+
+	args, err := NewQueryArgs(query)
+	if err != nil {
+		slog.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	domain := query.Get("domain")
-	if _, err := net.LookupHost(domain); err != nil {
-		http.Error(w, "invalid domain", http.StatusBadRequest)
-		return
-	}
-
-	ipv4 := query.Get("ipv4")
-	ip := net.ParseIP(ipv4)
-	if ip == nil || ip.To4() == nil {
-		http.Error(w, "invalid ipv4 address", http.StatusBadRequest)
-		return
-	}
-
 	ctx := r.Context()
 
-	record, err := s.cloudflare.GetARecordForDomain(ctx, domain)
+	client := cf.New(args.accountID, args.token, s.zoneID)
+	if err := client.VerifyToken(ctx); err != nil {
+		slog.Error("invalid token")
+		http.Error(w, "invalid token", http.StatusBadRequest)
+		return
+	}
+
+	record, err := client.GetARecordForDomain(ctx, args.domain)
 	if err != nil {
+		slog.Error("failed to list dns records", "err", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	updatedRecord, err := s.cloudflare.UpdateARecord(ctx, record, ipv4)
+	_, err = client.UpdateARecord(ctx, record, args.ipv4)
 	if err != nil {
+		slog.Error("failed to update A record", "domain", args.domain, "ipv4", args.ipv4, "err", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprint(w, updatedRecord.JSON.RawJSON())
+	slog.Info("successfully updated", "domain", args.domain)
 }

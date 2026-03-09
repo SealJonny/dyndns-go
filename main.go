@@ -1,34 +1,24 @@
 package main
 
 import (
-	"context"
+	"log/slog"
 	"os"
 
 	"github.com/SealJonny/dyndns-go/server"
-	"github.com/cloudflare/cloudflare-go/v6"
-	"github.com/cloudflare/cloudflare-go/v6/dns"
 )
 
-func listDNSRecords(client *cloudflare.Client, zoneID string) ([]dns.RecordResponse, error) {
-	page, err := client.DNS.Records.List(context.TODO(), dns.RecordListParams{
-		ZoneID: cloudflare.F(zoneID),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return page.Result, nil
-}
+var version = "dev"
 
 func main() {
-	token, exists := os.LookupEnv("CF_TOKEN")
-	if !exists {
-		panic("CF_TOKEN is not set")
-	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
+	slog.Info("starting dyndns-go", "version", version)
 
 	zoneID, exists := os.LookupEnv("CF_ZONE_ID")
 	if !exists {
-		panic("CF_ZONE_ID is not set")
+		slog.Error("CF_ZONE_ID is not set")
+		os.Exit(1)
 	}
 
 	port, exists := os.LookupEnv("PORT")
@@ -36,9 +26,11 @@ func main() {
 		port = "80"
 	}
 
-	server := server.New(port, token, zoneID)
+	server := server.New(port, zoneID)
+	slog.Info("starting server", "port", port)
 	err := server.Start()
 	if err != nil {
-		panic(err)
+		slog.Error("failed to start server", "err", err)
+		os.Exit(1)
 	}
 }
