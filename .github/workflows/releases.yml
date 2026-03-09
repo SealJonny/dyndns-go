@@ -19,7 +19,7 @@ jobs:
         go-version: '1.26'
 
     - name: Build
-      run: go build -v ./...
+      run: go build -v -o bin/dyndns-go ./...
 
     - name: Test
       run: go test -v ./...
@@ -27,4 +27,4 @@ jobs:
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: dyndns-go
+        files: bin/dyndns-go
