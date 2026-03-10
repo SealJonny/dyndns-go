@@ -2,6 +2,7 @@ package notification
 
 import (
 	"fmt"
+	"log/slog"
 
 	"gopkg.in/gomail.v2"
 )
@@ -37,42 +38,44 @@ func EnableSMTP() {
 	smtpEnabled = true
 }
 
-func (c *SMTPClient) sendEmail(subject, body string) error {
+func (c *SMTPClient) sendEmail(subject, body string) {
 	if !smtpEnabled {
-		return nil
+		return
 	}
 
 	m := gomail.NewMessage()
 
-	m.SetHeader("From", c.user)
+	m.SetAddressHeader("From", c.user, "DynDNS Notifier")
 	m.SetHeader("To", c.receiver)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
 
 	d := gomail.NewDialer(c.host, c.port, c.user, c.password)
-	return d.DialAndSend(m)
+	if err := d.DialAndSend(m); err != nil {
+		slog.Error("failed to send mail", "err", err)
+	}
 }
 
-func (c *SMTPClient) Error(subject string, body string) error {
-	return c.sendEmail(fmt.Sprintf("ERROR: %s", subject), body)
+func (c *SMTPClient) Error(subject string, body string) {
+	c.sendEmail(fmt.Sprintf("ERROR: %s", subject), body)
 }
 
-func SMTPError(subject string, body string) error {
-	return defaultSMTPClient.Error(subject, body)
+func SMTPError(subject string, body string) {
+	defaultSMTPClient.Error(subject, body)
 }
 
-func (c *SMTPClient) Warn(subject string, body string) error {
-	return c.sendEmail(fmt.Sprintf("WARN: %s", subject), body)
+func (c *SMTPClient) Warn(subject string, body string) {
+	c.sendEmail(fmt.Sprintf("WARN: %s", subject), body)
 }
 
-func SMTPWarn(subject string, body string) error {
-	return defaultSMTPClient.Warn(subject, body)
+func SMTPWarn(subject string, body string) {
+	defaultSMTPClient.Warn(subject, body)
 }
 
-func (c *SMTPClient) Info(subject string, body string) error {
-	return c.sendEmail(fmt.Sprintf("INFO: %s", subject), body)
+func (c *SMTPClient) Info(subject string, body string) {
+	c.sendEmail(fmt.Sprintf("INFO: %s", subject), body)
 }
 
-func SMTPInfo(subject string, body string) error {
-	return defaultSMTPClient.Info(subject, body)
+func SMTPInfo(subject string, body string) {
+	defaultSMTPClient.Info(subject, body)
 }
