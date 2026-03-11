@@ -46,7 +46,6 @@ func (s *Server) handleDynDNS(w http.ResponseWriter, r *http.Request) {
 	client := cf.New(args.accountID, args.token, s.zoneID)
 	if err := client.VerifyToken(ctx); err != nil {
 		slog.Warn("invalid token")
-		notification.SMTPWarn("Request Failed", "Token is not valid!")
 		http.Error(w, "invalid token", http.StatusBadRequest)
 		return
 	}
