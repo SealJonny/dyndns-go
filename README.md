@@ -11,6 +11,11 @@ A lightweight Dynamic DNS server written in Go. It exposes a simple HTTP endpoin
 3. Looks up the existing A record for the given domain in its Cloudflare zone
 4. Updates that A record with the new IPv4 address
 
+## Features
+
+- **Cloudflare DNS updates** — updates A records via the Cloudflare API
+- **Email notifications (SMTP)** — optionally sends email alerts on DNS update success or failure
+
 ## Requirements
 
 - A [Cloudflare](https://cloudflare.com) account with the target domain managed as a zone
@@ -21,10 +26,18 @@ A lightweight Dynamic DNS server written in Go. It exposes a simple HTTP endpoin
 
 The server is configured via environment variables:
 
-| Variable      | Required | Default | Description                                      |
-|---------------|----------|---------|--------------------------------------------------|
-| `CF_ZONE_ID`  | ✅ Yes   | —       | The Cloudflare Zone ID of the targeted domain    |
-| `PORT`        | ❌ No    | `80`    | The port the HTTP server listens on              |
+| Variable        | Required | Default | Description                                            |
+|-----------------|----------|---------|--------------------------------------------------------|
+| `CF_ZONE_ID`    | ✅ Yes   | —       | The Cloudflare Zone ID of the targeted domain          |
+| `PORT`          | ❌ No    | `80`    | The port the HTTP server listens on                    |
+| `SMTP_ENABLE`   | ❌ No    | `false` | Set to `true` to enable SMTP email notifications       |
+| `SMTP_HOST`     | ⚠️ *    | —       | SMTP server hostname                                   |
+| `SMTP_PORT`     | ⚠️ *    | —       | SMTP server port                                       |
+| `SMTP_USERNAME` | ⚠️ *    | —       | SMTP login username (also used as the sender address)  |
+| `SMTP_PASSWORD` | ⚠️ *    | —       | SMTP login password                                    |
+| `SMTP_RECEIVER` | ⚠️ *    | —       | Email address that receives the notifications          |
+
+> *⚠️ Required when `SMTP_ENABLE` is set to `true`.*
 
 ## API
 
@@ -76,10 +89,30 @@ go build -o bin/dyndns-go ./...
 export CF_ZONE_ID=your_zone_id
 export PORT=8080  # optional
 
+# Optional: enable SMTP notifications
+export SMTP_ENABLE=true
+export SMTP_HOST=smtp.example.com
+export SMTP_PORT=587
+export SMTP_USERNAME=you@example.com
+export SMTP_PASSWORD=secret
+export SMTP_RECEIVER=alerts@example.com
+
 ./bin/dyndns-go
 ```
 
 The server will log startup information and listen for requests on the configured port.
+
+### Email Notifications
+
+When SMTP is enabled, the server sends emails for the following events:
+
+| Event                  | Level | Description                                    |
+|------------------------|-------|------------------------------------------------|
+| DNS record updated     | INFO  | A record was updated successfully              |
+| Cloudflare list error  | ERROR | Failed to list DNS records from Cloudflare     |
+| Cloudflare update error| ERROR | Failed to update a DNS record in Cloudflare    |
+
+Emails are sent from the `SMTP_USERNAME` address with the display name **DynDNS Notifier**.
 
 ## Router Integration
 
