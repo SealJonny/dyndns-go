@@ -23,10 +23,10 @@ func checkENV(name, msg string) string {
 
 func setupNotification() {
 	smtpEnabled := false
-	stmpEnabledStr, exists := os.LookupEnv("SMTP_ENABLE")
+	smtpEnabledStr, exists := os.LookupEnv("SMTP_ENABLE")
 	if exists {
 		var err error
-		smtpEnabled, err = strconv.ParseBool(stmpEnabledStr)
+		smtpEnabled, err = strconv.ParseBool(smtpEnabledStr)
 		if err != nil {
 			slog.Error("SMTP_ENABLE is not a valid boolean")
 			os.Exit(1)
