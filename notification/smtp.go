@@ -52,7 +52,7 @@ func (c *SMTPClient) sendEmail(subject, body string) {
 
 	d := gomail.NewDialer(c.host, c.port, c.user, c.password)
 	if err := d.DialAndSend(m); err != nil {
-		slog.Error("failed to send mail", "err", err)
+		slog.Error("failed to send mail", "err", err, "subject", subject, "to", c.receiver)
 	}
 }
 
