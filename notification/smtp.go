@@ -31,6 +31,10 @@ func New(host string, port int, user string, password string, receiver string) *
 }
 
 func SetSMTPDefault(client *SMTPClient) {
+	if client == nil {
+		slog.Error("SetSMTPDefault called with nil SMTP client")
+		return
+	}
 	defaultSMTPClient = *client
 }
 
