@@ -79,7 +79,7 @@ func (c *CloudflareDNS) GetARecordsByIPv4(ctx context.Context, ipv4 string) ([]d
 	return records, err
 }
 
-// UpdateARecord updates the give record with the provided IPv4 address and returns it.
+// UpdateARecord updates the given record with the provided IPv4 address and returns it.
 func (c *CloudflareDNS) UpdateARecord(ctx context.Context, record *dns.RecordResponse, ipv4 string) (*dns.RecordResponse, error) {
 	return c.client.DNS.Records.Edit(ctx, record.ID, dns.RecordEditParams{
 		ZoneID: cloudflare.F(c.zoneID),

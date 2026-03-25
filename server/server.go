@@ -45,8 +45,8 @@ func (s *Server) handleDynDNS(w http.ResponseWriter, r *http.Request) {
 
 	client := cf.New(args.accountID, args.token, s.zoneID)
 	if err := client.VerifyToken(ctx); err != nil {
-		slog.Warn("invalid token")
-		http.Error(w, "invalid token", http.StatusBadRequest)
+		slog.Warn("invalid token or account id")
+		http.Error(w, "invalid token or account id", http.StatusBadRequest)
 		return
 	}
 
@@ -60,8 +60,8 @@ func (s *Server) handleDynDNS(w http.ResponseWriter, r *http.Request) {
 
 	records, err := client.GetARecordsByIPv4(ctx, record.Content)
 	if err != nil {
-		slog.Error("failed to list dns records for ipv4", "err", err, "ipv4", args.ipv4)
-		notification.SMTPError("Cloudflare List Error", "Could not list dns records for ipv4.")
+		slog.Error("failed to list dns records for ipv4", "err", err, "ipv4", record.Content)
+		notification.SMTPError("Cloudflare List Error", "Could not list dns records for ipv4")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -72,7 +72,7 @@ func (s *Server) handleDynDNS(w http.ResponseWriter, r *http.Request) {
 			slog.Error("failed to update A record", "domain", r.Name, "ipv4", args.ipv4, "err", err)
 			notification.SMTPError("Cloudflare Update Error", fmt.Sprintf("Could not update %s", r.Name))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			continue
 		}
 		slog.Info("successfully updated", "domain", r.Name)
 	}
