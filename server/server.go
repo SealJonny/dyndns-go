@@ -67,19 +67,22 @@ func (s *Server) handleDynDNS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	partiallyFailed := false
-	for _, r := range records {
-		_, err = client.UpdateARecord(ctx, &r, args.ipv4)
+	var partialError error
+	for i := range records {
+		rec := &records[i]
+		_, err = client.UpdateARecord(ctx, rec, args.ipv4)
 		if err != nil {
 			partiallyFailed = true
-			slog.Error("failed to update A record", "domain", r.Name, "ipv4", args.ipv4, "err", err)
-			notification.SMTPError("Cloudflare Update Error", fmt.Sprintf("Could not update %s", r.Name))
+			partialError = err
+			slog.Error("failed to update A record", "domain", rec.Name, "ipv4", args.ipv4, "err", err)
+			notification.SMTPError("Cloudflare Update Error", fmt.Sprintf("Could not update %s", rec.Name))
 			continue
 		}
-		slog.Info("successfully updated", "domain", r.Name)
+		slog.Info("successfully updated", "domain", rec.Name)
 	}
 
 	if partiallyFailed {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, partialError.Error(), http.StatusInternalServerError)
 		return
 	}
 
