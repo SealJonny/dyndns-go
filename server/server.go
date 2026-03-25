@@ -45,27 +45,46 @@ func (s *Server) handleDynDNS(w http.ResponseWriter, r *http.Request) {
 
 	client := cf.New(args.accountID, args.token, s.zoneID)
 	if err := client.VerifyToken(ctx); err != nil {
-		slog.Warn("invalid token")
-		http.Error(w, "invalid token", http.StatusBadRequest)
+		slog.Warn("invalid token or account id")
+		http.Error(w, "invalid token or account id", http.StatusBadRequest)
 		return
 	}
 
-	record, err := client.GetARecordForDomain(ctx, args.domain)
+	record, err := client.GetARecordByDomain(ctx, args.domain)
 	if err != nil {
-		slog.Error("failed to list dns records", "err", err)
-		notification.SMTPError("Cloudflare List Error", "Could not list dns records.")
+		slog.Error("failed to list dns records for domain", "err", err, "domain", args.domain)
+		notification.SMTPError("Cloudflare List Error", "Could not list dns records for domain.")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	_, err = client.UpdateARecord(ctx, record, args.ipv4)
+	records, err := client.GetARecordsByIPv4(ctx, record.Content)
 	if err != nil {
-		slog.Error("failed to update A record", "domain", args.domain, "ipv4", args.ipv4, "err", err)
-		notification.SMTPError("Cloudflare Update Error", fmt.Sprintf("Could not update %s", args.domain))
+		slog.Error("failed to list dns records for ipv4", "err", err, "ipv4", record.Content)
+		notification.SMTPError("Cloudflare List Error", "Could not list dns records for ipv4")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info("successfully updated", "domain", args.domain)
-	notification.SMTPInfo("Updated DNS record", fmt.Sprintf("Updated DNS record for %s successfully.", args.domain))
+	partiallyFailed := false
+	var partialError error
+	for i := range records {
+		rec := &records[i]
+		_, err = client.UpdateARecord(ctx, rec, args.ipv4)
+		if err != nil {
+			partiallyFailed = true
+			partialError = err
+			slog.Error("failed to update A record", "domain", rec.Name, "ipv4", args.ipv4, "err", err)
+			notification.SMTPError("Cloudflare Update Error", fmt.Sprintf("Could not update %s", rec.Name))
+			continue
+		}
+		slog.Info("successfully updated", "domain", rec.Name)
+	}
+
+	if partiallyFailed {
+		http.Error(w, partialError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	notification.SMTPInfo("Updated DNS records", fmt.Sprintf("Updated DNS record for %s successfully.", args.domain))
 }
