@@ -29,7 +29,7 @@ func NewQueryArgs(query url.Values) (*QueryArgs, error) {
 	}
 
 	domain := query.Get("domain")
-	if _, err := net.LookupHost(domain); err != nil {
+	if len(domain) == 0 {
 		return nil, fmt.Errorf("invalid domain")
 	}
 
